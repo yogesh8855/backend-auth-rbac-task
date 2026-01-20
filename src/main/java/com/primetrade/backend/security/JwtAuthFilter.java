@@ -32,35 +32,49 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String authHeader = request.getHeader("Authorization");
 
+        // No Authorization header
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String token = authHeader.substring(7);
-        String email = jwtUtil.extractEmail(token);
+        // Extract & sanitize token
+        String token = authHeader.substring(7).trim();
 
-        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+        // Empty or malformed token
+        if (token.isEmpty() || !token.contains(".")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
-            User user = userRepository.findByEmail(email).orElse(null);
+        try {
+            String email = jwtUtil.extractEmail(token);
 
-            if (user != null && jwtUtil.validateToken(token)) {
+            if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                user,
-                                null,
-                                List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole()))
-                        );
+                User user = userRepository.findByEmail(email).orElse(null);
 
-                authentication.setDetails(
-                        new WebAuthenticationDetailsSource().buildDetails(request)
-                );
+                if (user != null && jwtUtil.validateToken(token)) {
 
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    user,
+                                    null,
+                                    List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole()))
+                            );
+
+                    authentication.setDetails(
+                            new WebAuthenticationDetailsSource().buildDetails(request)
+                    );
+
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
             }
+        } catch (Exception e) {
+            // Ignore invalid JWT and continue filter chain
         }
 
         filterChain.doFilter(request, response);
     }
+
 }
