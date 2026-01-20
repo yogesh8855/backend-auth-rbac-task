@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Primetrade Task Manager</title>
+    <style>
+        body { font-family: Arial; margin: 40px; }
+        input, button { margin: 5px 0; padding: 8px; width: 300px; }
+        button { cursor: pointer; }
+        .section { margin-bottom: 30px; }
+        .msg { margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<h2>Primetrade Backend Demo</h2>
+
+<div class="section">
+    <h3>Register</h3>
+    <input id="r-name" placeholder="Name"><br>
+    <input id="r-email" placeholder="Email"><br>
+    <input id="r-password" type="password" placeholder="Password"><br>
+    <button onclick="register()">Register</button>
+    <div id="r-msg" class="msg"></div>
+</div>
+
+<div class="section">
+    <h3>Login</h3>
+    <input id="l-email" placeholder="Email"><br>
+    <input id="l-password" type="password" placeholder="Password"><br>
+    <button onclick="login()">Login</button>
+    <div id="l-msg" class="msg"></div>
+</div>
+
+<div class="section">
+    <h3>Create Task</h3>
+    <input id="t-title" placeholder="Title"><br>
+    <input id="t-desc" placeholder="Description"><br>
+    <button onclick="createTask()">Create Task</button>
+    <div id="t-msg" class="msg"></div>
+</div>
+
+<div class="section">
+    <h3>My Tasks</h3>
+    <button onclick="loadTasks()">Load Tasks</button>
+    <ul id="task-list"></ul>
+</div>
+
+<script>
+    const API = "http://localhost:8080/api/v1";
+    let token = "";
+
+    function register() {
+        fetch(API + "/auth/register", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                name: r-name.value,
+                email: r-email.value,
+                password: r-password.value
+            })
+        })
+        .then(r => r.text())
+        .then(d => r-msg.innerText = d);
+    }
+
+    function login() {
+        fetch(API + "/auth/login", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                email: l-email.value,
+                password: l-password.value
+            })
+        })
+        .then(r => {
+            if (!r.ok) throw new Error("Invalid credentials");
+            return r.json();
+        })
+        .then(d => {
+            token = d.token;
+            l-msg.innerText = "Login successful";
+            l-msg.style.color = "green";
+        })
+        .catch(err => {
+            l-msg.innerText = err.message;
+            l-msg.style.color = "red";
+        });
+    }
+
+    function createTask() {
+        fetch(API + "/tasks", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + token
+            },
+            body: JSON.stringify({
+                title: t-title.value,
+                description: t-desc.value,
+                status: "OPEN"
+            })
+        })
+        .then(r => r.json())
+        .then(() => t-msg.innerText = "Task created");
+    }
+
+    function loadTasks() {
+        fetch(API + "/tasks", {
+            headers: {
+                "Authorization": "Bearer " + token
+            }
+        })
+        .then(r => r.json())
+        .then(tasks => {
+            task-list.innerHTML = "";
+            tasks.forEach(t => {
+                let li = document.createElement("li");
+                li.innerText = t.title + " - " + t.status;
+                task-list.appendChild(li);
+            });
+        });
+    }
+</script>
+
+</body>
+</html>
